@@ -17,6 +17,7 @@ version dégradée-mais-honnête de la définition du §2 : l'improbable
 prospectif qui devient nécessaire rétrospectivement.
 """
 from __future__ import annotations
+
 import math
 from collections import Counter
 

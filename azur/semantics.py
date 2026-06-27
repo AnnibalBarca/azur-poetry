@@ -13,10 +13,9 @@ Interface stable : remplacer `relatedness()` par une similarité cosinus
 CamemBERT ne change rien au reste du pipeline.
 """
 from __future__ import annotations
+
 import json
 import os
-import re
-import unicodedata
 
 DATA = os.path.join(os.path.dirname(__file__), "..", "data")
 

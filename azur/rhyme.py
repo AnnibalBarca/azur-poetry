@@ -6,6 +6,7 @@ G2P de queue de mot par substitutions ordonnées (suffisant pour la rime ;
 un déploiement sérieux branche Lexique.org ou espeak-ng).
 """
 from __future__ import annotations
+
 import re
 
 _SILENT_FINALS = re.compile(r"(?<=[a-zéèêàâîôûœ])[sxztdp]$")

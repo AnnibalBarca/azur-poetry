@@ -15,8 +15,8 @@ Le compteur est volontairement table-driven : les tables de diérèses et
 d'exceptions SONT la méthode (cf. Banville, Mazaleyrat) — elles s'enrichissent.
 """
 from __future__ import annotations
+
 import re
-import unicodedata
 from dataclasses import dataclass, field
 
 VOWELS = set("aàâäeéèêëiîïoôöuùûüyœ")

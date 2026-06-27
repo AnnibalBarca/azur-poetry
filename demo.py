@@ -6,9 +6,11 @@
      destruction contrôlée type P4 — le score DOIT chuter)
   3. Piège adversarial : faux alexandrin
 """
-import sys, os
+import os
+import sys
+
 sys.path.insert(0, os.path.dirname(__file__))
-from azur.scorer import score, render
+from azur.scorer import render, score
 
 V1 = "Laissez la nuit couver l'œuf bleu de l'angoisse"
 V2 = "Et mange ta soupe qui sent la poisse"

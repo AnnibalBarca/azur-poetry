@@ -9,12 +9,12 @@ Usage :
   echo "..." | python3 azur_cli.py
 """
 import argparse
-import sys
 import os
+import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from azur.scorer import score, render
 from azur.judge import judge
+from azur.scorer import render, score
 
 
 def main():

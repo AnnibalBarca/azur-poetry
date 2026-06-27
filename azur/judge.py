@@ -8,6 +8,7 @@ ce que les features ratent : ironie, intertexte, tenue d'ensemble, et le test
 du résidu de paraphrase (L3) impossible hors-ligne.
 """
 from __future__ import annotations
+
 import json
 import os
 
@@ -35,7 +36,8 @@ def judge(text: str, model: str = "claude-sonnet-4-6") -> dict | None:
     client = anthropic.Anthropic(api_key=key)
     msg = client.messages.create(
         model=model, max_tokens=400,
-        messages=[{"role": "user", "content": f"{RUBRIC}\n\n<texte>\n{text}\n</texte>"}],
+        messages=[{"role": "user",
+                   "content": f"{RUBRIC}\n\n<texte>\n{text}\n</texte>"}],
     )
     raw = "".join(b.text for b in msg.content if b.type == "text")
     raw = raw.replace("```json", "").replace("```", "").strip()

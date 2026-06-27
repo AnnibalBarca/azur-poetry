@@ -16,13 +16,14 @@ clause par clause : impératif quotidien + AUCUNE paire à forte distance
 sémantique interne => tension plafonnée (§2.3).
 """
 from __future__ import annotations
-from dataclasses import dataclass, field
-import math
 
+import math
+from dataclasses import dataclass, field
+
+from . import lm as LM
+from . import rhyme as R
 from . import scansion as SC
 from . import semantics as S
-from . import rhyme as R
-from . import lm as LM
 from .lm import zipf_frequency
 
 
