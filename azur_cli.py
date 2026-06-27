@@ -26,13 +26,19 @@ def main():
     ap.add_argument("--json", action="store_true", help="sortie JSON")
     args = ap.parse_args()
 
+    # ---- entrée texte ----
     if args.file:
-        text = open(args.file, encoding="utf-8").read()
+        try:
+            text = open(args.file, encoding="utf-8").read()
+        except OSError as exc:
+            print(f"azur: impossible de lire {args.file}: {exc}", file=sys.stderr)
+            return 1
     elif args.text:
         text = args.text
     else:
         text = sys.stdin.read()
 
+    # ---- score (couches 1-5) ----
     rep = score(text)
     if args.json:
         import json
@@ -50,10 +56,20 @@ def main():
         print(json.dumps(out, ensure_ascii=False, indent=2))
     else:
         print(render(rep))
+
+    # ---- juge LLM optionnel (couche 6) ----
     if args.judge:
-        j = judge(text)
-        print("\n[juge LLM]", j if j else "indisponible (clé API ou réseau)")
+        if not os.environ.get("ANTHROPIC_API_KEY"):
+            print("azur: --judge inactif (ANTHROPIC_API_KEY non définie).",
+                  file=sys.stderr)
+        else:
+            j = judge(text)
+            # en mode JSON, garder stdout strict : verdict sur stderr.
+            stream = sys.stderr if args.json else sys.stdout
+            print("\n[juge LLM]", j if j else "indisponible (réseau/API)",
+                  file=stream)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -52,7 +52,14 @@ def test_cli_judge_sans_cle_indisponible():
     env.pop("ANTHROPIC_API_KEY", None)  # garantir l'absence de clé
     r = _run([V1, "--judge"], env=env)
     assert r.returncode == 0
-    assert "indisponible" in r.stdout
+    assert "--judge inactif" in r.stderr   # avertissement sur stderr
+    assert "indisponible" not in r.stdout  # stdout laissé propre
+
+
+def test_cli_fichier_introuvable_exit_1():
+    r = _run(["-f", "/chemin/inexistant/azur.txt"])
+    assert r.returncode == 1
+    assert "impossible de lire" in r.stderr
 
 
 def test_cli_aucun_argument_lit_stdin_vide():

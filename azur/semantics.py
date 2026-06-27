@@ -49,6 +49,12 @@ def norm(w: str) -> str:
     return w
 
 
+# Vocabulaire connu (union des champs) — défini avant lemma_lite qui le
+# consulte (lisibilité, et pour ne pas dépendre d'une résolution différée).
+_ALL_WORDS = set().union(*DENOTATIF.values(), *CONNOTATIF.values(),
+                         POLE_LYRIQUE, POLE_PROSAIQUE)
+
+
 def lemma_lite(w: str) -> str:
     """Dé-flexion grossière pour la consultation des champs."""
     w = norm(w)
@@ -56,10 +62,6 @@ def lemma_lite(w: str) -> str:
         if len(w) > 3 and w.endswith(suf) and w[:-1] in _ALL_WORDS:
             return w[:-1]
     return w
-
-
-_ALL_WORDS = set().union(*DENOTATIF.values(), *CONNOTATIF.values(),
-                         POLE_LYRIQUE, POLE_PROSAIQUE)
 
 
 def fields_of(w: str, table: dict[str, set[str]]) -> set[str]:

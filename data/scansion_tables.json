@@ -1,0 +1,24 @@
+{
+  "_doc": "Tables ouvertes de la scansion classique (PTYX-lite). Comme chez Banville/Mazaleyrat : ces tables SONT la méthode et s'enrichissent à la main. verb_ent = formes en -ent muet (un déploiement sérieux branche un lemmatiseur/Lexique) ; dierese = nombre absolu de noyaux du radical pour les diérèses classiques.",
+  "verb_ent": [
+    "prennent", "suivent", "chantent", "aiment", "conspirent", "tombent",
+    "glissent", "couvent", "mangent", "sentent", "brillent", "pleurent",
+    "dorment", "meurent", "vivent", "passent", "portent", "semblent",
+    "tremblent", "songent", "veillent", "ouvrent", "ferment", "montent",
+    "descendent", "regardent", "écoutent", "respirent", "frissonnent"
+  ],
+  "dierese": {
+    "lion": 2, "lions": 2,
+    "meurtrier": 3, "meurtriers": 3,
+    "ancien": 3, "anciens": 3, "ancienne": 3, "anciennes": 3,
+    "hier": 2,
+    "pays": 2, "paysage": 3, "paysages": 3,
+    "suave": 3, "suaves": 3, "tuer": 2, "ruine": 3, "ruines": 3,
+    "violon": 3, "violons": 3, "pieux": 2,
+    "odieux": 3, "radieux": 3, "précieux": 3, "précieuse": 3,
+    "studieux": 3, "curieux": 3,
+    "passion": 3, "passions": 3, "nation": 3, "nations": 3,
+    "diamant": 3, "diamants": 3, "océan": 3, "océans": 3,
+    "luisant": 3
+  }
+}

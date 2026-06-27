@@ -16,8 +16,14 @@ d'exceptions SONT la méthode (cf. Banville, Mazaleyrat) — elles s'enrichissen
 """
 from __future__ import annotations
 
+import json
+import os
 import re
 from dataclasses import dataclass, field
+
+_DATA = os.path.join(os.path.dirname(__file__), "..", "data")
+with open(os.path.join(_DATA, "scansion_tables.json"), encoding="utf-8") as _f:
+    _TABLES = json.load(_f)
 
 VOWELS = set("aàâäeéèêëiîïoôöuùûüyœ")
 # Voyelles accentuées : ne se groupent jamais avec une voyelle voisine
@@ -36,29 +42,13 @@ H_ASPIRE = {
 NO_CADUC_ES = {"les", "des", "mes", "tes", "ses", "ces"}
 
 # Formes verbales en -ent muet rencontrées dans les corpus de test / démo.
-# (Un vrai déploiement branche ici un lemmatiseur ou Lexique.)
-VERB_ENT = {
-    "prennent", "suivent", "chantent", "aiment", "conspirent", "tombent",
-    "glissent", "couvent", "mangent", "sentent", "brillent", "pleurent",
-    "dorment", "meurent", "vivent", "passent", "portent", "semblent",
-    "tremblent", "songent", "veillent", "ouvrent", "ferment", "montent",
-    "descendent", "regardent", "écoutent", "respirent", "frissonnent",
-}
+# Table ouverte (data/scansion_tables.json) : un vrai déploiement branche
+# ici un lemmatiseur ou Lexique.org.
+VERB_ENT = set(_TABLES["verb_ent"])
 
 # Diérèses classiques : surcharge du compte de noyaux (valeur ABSOLUE de
-# noyaux du radical, e caduc final exclu).
-DIERESE_TABLE = {
-    "lion": 2, "lions": 2, "meurtrier": 3, "meurtriers": 3,
-    "ancien": 3, "anciens": 3, "ancienne": 3, "anciennes": 3,
-    "hier": 2,            # flottant : convention classique = 2
-    "pays": 2, "paysage": 3, "paysages": 3,
-    "suave": 3, "suaves": 3, "tuer": 2, "ruine": 3, "ruines": 3,
-    "violon": 3, "violons": 3, "pieux": 2, "odieux": 3, "radieux": 3,
-    "précieux": 3, "précieuse": 3, "studieux": 3, "curieux": 3,
-    "passion": 3, "passions": 3, "nation": 3, "nations": 3,
-    "diamant": 3, "diamants": 3, "océan": 3, "océans": 3,
-    "luisant": 3,  # exemple : lu-i-sant chez certains classiques (flottant)
-}
+# noyaux du radical, e caduc final exclu). Table ouverte.
+DIERESE_TABLE = dict(_TABLES["dierese"])
 # Diérèses régulières : motifs en fin de mot, +n noyaux sur le compte naïf.
 DIERESE_PATTERNS = [
     (re.compile(r"[tdcsx]ions?$"), 1),          # na-ti-on, ac-ti-ons

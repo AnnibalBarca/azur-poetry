@@ -10,7 +10,13 @@ du résidu de paraphrase (L3) impossible hors-ligne.
 from __future__ import annotations
 
 import json
+import logging
 import os
+
+log = logging.getLogger("azur.judge")
+
+# Modèle surchargeable via env (AZUR_JUDGE_MODEL) sans toucher au code.
+DEFAULT_MODEL = os.environ.get("AZUR_JUDGE_MODEL", "claude-sonnet-4-5")
 
 RUBRIC = """Tu es un juge de poésie française outillé par une rubrique stricte.
 Note le texte ci-dessous sur 4 critères, chacun entre 0.0 et 1.0 :
@@ -25,7 +31,9 @@ Réponds UNIQUEMENT en JSON : {"ecart":x,"recuperabilite":x,
 "residu_de_paraphrase":x,"tenue":x,"justification":"<=40 mots"}."""
 
 
-def judge(text: str, model: str = "claude-sonnet-4-6") -> dict | None:
+def judge(text: str, model: str | None = None) -> dict | None:
+    """Note le texte via un LLM. Retourne None (et log) si indisponible
+    ou en cas d'erreur API : le pipeline 1-5 reste autonome."""
     key = os.environ.get("ANTHROPIC_API_KEY")
     if not key:
         return None
@@ -34,14 +42,19 @@ def judge(text: str, model: str = "claude-sonnet-4-6") -> dict | None:
     except ImportError:
         return None
     client = anthropic.Anthropic(api_key=key)
-    msg = client.messages.create(
-        model=model, max_tokens=400,
-        messages=[{"role": "user",
-                   "content": f"{RUBRIC}\n\n<texte>\n{text}\n</texte>"}],
-    )
+    try:
+        msg = client.messages.create(
+            model=model or DEFAULT_MODEL, max_tokens=400,
+            messages=[{"role": "user",
+                       "content": f"{RUBRIC}\n\n<texte>\n{text}\n</texte>"}],
+        )
+    except Exception as exc:  # APIError, timeout, quota, réseau…
+        log.warning("juge LLM indisponible : %s", exc)
+        return None
     raw = "".join(b.text for b in msg.content if b.type == "text")
     raw = raw.replace("```json", "").replace("```", "").strip()
     try:
         return json.loads(raw)
     except json.JSONDecodeError:
+        log.warning("réponse du juge non JSON : %.80s", raw)
         return None
