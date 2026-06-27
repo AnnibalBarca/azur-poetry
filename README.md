@@ -1,124 +1,148 @@
-# AZUR — prototype exécutable
+# AZUR — a computational engine for scoring French poetry
 
-Implémentation testable de la spec AZUR (notation de perfection poétique)
-et du vérificateur PTYX-lite (scansion classique). Le pipeline note un texte
-poétique français sur 5 axes (Forme, Noyau T×C, Phonique, Originalité,
-Densité) agrégés en un score géométrique AZUR/100, complétés optionnellement
-par un juge LLM (couche 6).
+AZUR asks a question that sounds impossible: **can you measure how good a line of poetry is?**
 
-> Statut : prototype auditable, scores reproductibles. Les ressources
-> sémantiques sont des stubs remplaçables par de vrais embeddings (CamemBERT).
+Not whether it *rhymes* — that part is mechanical — but whether it *works*: whether a word lands with surprise and then resolves, whether an image earns its place, whether the line is doing something or just filling a metrical slot. AZUR is a runnable attempt to turn that judgment into numbers you can audit, defend, and reproduce.
 
-## Prérequis
+It scores a French poetic text along five axes — **Form, Core (tension × recovery), Phonics, Originality, Density** — and aggregates them into a single geometric **AZUR/100** score. An optional sixth layer hands the text to an LLM judge against an explicit rubric.
 
-- **Python ≥ 3.9** (testé sur 3.9, 3.11, 3.12).
-- Dépendances : voir `requirements.txt` (`wordfreq`, `pytest`).
-- Optionnel : `anthropic` pour le juge LLM ; `torch` + `transformers` pour le
-  backend surprisal réel (machine GPU).
+The point isn't to replace a reader. It's to make explicit the rules a careful reader applies implicitly — and then to test whether a machine can apply them too. That second question is what the companion benchmark, **PTYX**, is built to answer.
 
-## Installation & test (60 secondes)
+---
+
+## Why this exists
+
+I came to code from philosophy and logic, and AZUR is where those two halves meet. Formalizing "the laws of poetic beauty" is, underneath, an exercise in evaluation design: take something subtle and contested, decompose it into decidable and non-decidable parts, score the decidable parts rigorously, and stay honest about the rest. That is the same problem you face when you try to evaluate the output of *any* AI system on a task where "correct" is a matter of degree.
+
+So AZUR is two things at once. On the surface it's a poetry scorer. Underneath it's a worked example of how to build a rigorous evaluation pipeline for qualitative output — which is the unsolved problem sitting at the center of agentic AI.
+
+---
+
+## What it does, concretely
+
+Give it a line and it returns a structured analysis: syllable count with every *e caduc* and *diérèse* accounted for, caesura position, rhyme scheme and gender, phonemic richness, and per-axis scores with a written rationale.
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-python3 -m pytest tests/ -q        # 56 tests : scansion, rhyme, semantics, lm, scorer, cli
-python3 demo.py                    # étude de cas §3 + paire minimale + adversarial
+
+python3 -m pytest tests/ -q     # 56 tests: scansion, rhyme, semantics, lm, scorer, cli
+python3 demo.py                 # case study + minimal pair + adversarial example
+
 python3 azur_cli.py "Laissez la nuit couver l'œuf bleu de l'angoisse"
-python3 azur_cli.py -f poeme.txt --json
-ANTHROPIC_API_KEY=... python3 azur_cli.py -f poeme.txt --judge      # juge LLM (optionnel)
-AZUR_JUDGE_MODEL=claude-sonnet-4-5 python3 azur_cli.py -f poeme.txt --judge   # modèle au choix
+python3 azur_cli.py -f poem.txt --json
+ANTHROPIC_API_KEY=... python3 azur_cli.py -f poem.txt --judge
 ```
 
-Le CLI lit aussi l'entrée standard : `echo "..." | python3 azur_cli.py`.
-Codes de sortie : `0` succès, `1` erreur (ex. fichier introuvable). En mode
-`--json`, le verdict du juge part sur stderr afin de garder stdout strictement
-JSON.
+The CLI also reads from stdin (`echo "..." | python3 azur_cli.py`). Exit codes: `0` success, `1` error. In `--json` mode the judge's verdict goes to stderr so stdout stays strictly JSON.
 
-## Correspondance spec → code
-
-| Spec AZUR | Module | État |
-|---|---|---|
-| PTYX-lite : e caduc, élision, -es/-ent, diérèses, hiatus, césure | `azur/scansion.py` | réel, testé sur Racine/Hugo/Baudelaire/Mallarmé/Corneille |
-| §2.3 tokenisation en expressions (idiomes figés = 1 item) | `azur/semantics.py::segment` | réel |
-| L1 écart / tension prospective T (contexte gauche) | `azur/lm.py::tension` | réel (rareté wordfreq × distance dénotative) |
-| L2 récupérabilité C (isotopies connotatives) | `semantics.py` + `scorer.py` | réel sur ressource-jouet |
-| §2.2 indice de déclic Δ | `lm.py::declic` (jouet) ; `TransformersBackend.declic` (réel, 2 passes LM) | jouet ici / réel sur machine GPU |
-| L4 phonique, L5 U inversée, L6 densité, L7 clichés & désautomatisation | `scorer.py`, `rhyme.py` | réel |
-| Régime instrumental (« mange ta soupe ») | `scorer.py` | réel : impératif quotidien + écart interne < seuil |
-| Juge LLM (couche 6) + test de paraphrase L3 | `azur/judge.py` | réel, optionnel (clé API) |
-| Agrégation géométrique F/N/Φ/O/D | `scorer.py::score` | réel |
-
-## Résultats de la démo (reproductibles)
+A few reproducible results from the demo:
 
 ```
-V1 « Laissez la nuit couver l'œuf bleu de l'angoisse »   AZUR 66.7
-   T̄=0.45  C=0.88  Δ̄=0.55 — pic sur « couver » (T=0.81), retombée sur « œuf »
-V2 « Et mange ta soupe qui sent la poisse »              AZUR 26.5
-   [INSTRUMENTAL] T̄=0.12, idiome figé « sent la poisse », axe lexical -0.83
-Baudelaire (Albatros, strophe 1)                          AZUR 73.3
-Sa paraphrase prosaïque (paire minimale P4)               AZUR 59.5  (résidu -13.8)
-Faux alexandrin « de Baudelaire »                         17 syllabes -> prémisse rejetée
+V1  "Laissez la nuit couver l'œuf bleu de l'angoisse"   AZUR 66.7
+    peak tension on "couver" (T=0.81), falling off on "œuf"
+V2  "Et mange ta soupe qui sent la poisse"              AZUR 26.5
+    [INSTRUMENTAL] frozen idiom "sent la poisse", lexical axis -0.83
+Baudelaire (L'Albatros, stanza 1)                        AZUR 73.3
+its prose paraphrase (minimal pair)                      AZUR 59.5  (residual -13.8)
+fake alexandrine "by Baudelaire"                         17 syllables → premise rejected
 ```
 
-## Au-delà du prototype (backends)
+That last line matters: the engine refuses to analyze a 17-syllable line presented as a classical alexandrine, instead of inventing a caesura to please you. Resistance to a false premise is a property, not an accident.
 
-`azur/lm.py` expose trois backends derrière la même interface `surprisal()` :
+---
 
-- **`WordfreqBackend`** (défaut, partout) : rareté unigramme.
-- **`NGramBackend`** : bigrammes Kneser-Ney-lite sur un **corpus de prose**
-  fourni (la norme dont on mesure l'écart, loi L1) :
-  ```python
-  from azur.lm import NGramBackend
-  backend = NGramBackend(open("corpus_prose.txt").read().splitlines())
-  print(score("Le navire glissant sur les gouffres amers", backend=backend).score)
-  ```
-- **`TransformersBackend`** : LM causal HuggingFace (Mistral/GPT-fr), surprisal
-  réel en 2 passes pour Δ. Code complet, à exécuter sur machine avec GPU/poids.
+## How the score is built
 
-## Limites assumées (et points de branchement)
+The scansion layer (`PTYX-lite`) does classical French metrics — *e caduc*, elision, mute `-es`/`-ent`, diérèses, hiatus, caesura — and is tested against real lines from Racine, Hugo, Baudelaire, Mallarmé and Corneille. On top of it sit the semantic and language-model layers that estimate **tension** (how far a word departs from what the left context predicts, via unigram rarity and denotative distance) and **recovery** (whether connotative isotopies let the reader re-integrate that departure). The scorer combines everything geometrically across the five axes and flags an *instrumental* regime — an everyday imperative like "eat your soup" with no internal departure scores low on purpose.
 
-1. **`data/champs.json` est un stub d'embeddings.** Les isotopies sont
-   codées à la main pour le vocabulaire de la démo : le vers de Mallarmé
-   obtient C=0.25 faute de champs adéquats — c'est la démonstration en acte
-   que la récupérabilité exige une vraie sémantique distributionnelle.
-   Brancher CamemBERT : remplacer `relatedness`/`denotative_relatedness`
-   par des cosinus (interface inchangée).
-2. **Δ jouet vs Δ réel.** Ici Δ = T × relief connotatif. La vraie définition
-   (surprisal prospectif − rétrospectif, 2 passes LM) est codée dans
-   `TransformersBackend.declic` — à exécuter avec Mistral-7B/GPT-fr local.
-3. **G2P de rime approché.** Suffisant pour genre/schéma/richesse en démo ;
-   brancher Lexique.org (colonne `phon`) ou espeak-ng pour du sérieux.
-4. **Les tables ouvertes vivent maintenant dans `data/`.** `VERB_ENT` et
-   `DIERESE_TABLE` (scansion) sont dans `data/scansion_tables.json`, les
-   idiomes dans `data/idiomes.txt` : comme chez Banville, elles s'enrichissent
-   à la main, elles ne se devinent pas.
-5. **`lemma_lite` est volontairement minimal.** Elle lève le pluriel `-s`
-   mais pas le féminin `-e` (« bleue » vs « bleu ») : la désautomatisation
-   « œuf bleu / peur bleue » n'est donc pas encore détectée. Un vrai
-   lemmatiseur (ou lemmatisation par dictionnaire) la remplacerait.
-6. **O sans RAG.** L'originalité de 2ᵉ ordre complète (voisins Gallica,
-   n-grammes) attend l'index FAISS de la phase 2.
+The language-model component sits behind one `surprisal()` interface with three interchangeable backends, so you can run AZUR anywhere and scale up when you have the hardware:
 
-## Arborescence
+- **WordfreqBackend** (default, runs everywhere): unigram rarity.
+- **NGramBackend**: Kneser-Ney-lite bigrams over a prose corpus you supply — the norm whose departure the engine measures.
+- **TransformersBackend**: a causal HuggingFace LM (Mistral / GPT-fr), real two-pass surprisal for the *déclic* index, meant for a GPU machine.
+
+```python
+from azur.lm import NGramBackend
+backend = NGramBackend(open("corpus_prose.txt").read().splitlines())
+print(score("Le navire glissant sur les gouffres amers", backend=backend).score)
+```
+
+The semantic resources (`data/champs.json`), idiom lists, scansion tables and rhyme tables all live in `data/` as plain files you can extend by hand — they grow the way Banville's tables grew, by curation, not guessing. Swapping the toy semantic resource for real CamemBERT embeddings is a drop-in: replace the relatedness functions with cosine similarities, interface unchanged.
+
+---
+
+## PTYX — the benchmark behind AZUR
+
+**PTYX** (*Poésie Technique : Yardstick eXigeant*) is the evaluation suite AZUR grew out of. It's named after Mallarmé's *Sonnet en -yx*, built on a rhyme word the poet had to *invent* — exactly the kind of constraint the benchmark imposes. Where AZUR scores a given poem, PTYX measures whether a language model can read, generate, and reason about classical French versification at all.
+
+Classical versification turns out to be an almost ideal testbed for an LLM, for four reasons:
+
+1. **Partial formal verifiability.** Syllable count, caesura, rhyme scheme and alternation are objectively decidable (given a diérèse lexicon). Roughly 60% of the score has no subjectivity in it.
+2. **A tokenization/phonology conflict.** Models see tokens, not phonemes. The *e caduc*, the diérèse, the liaison are sub-token phenomena — so the benchmark measures whether a model can reconstruct a phonological layer it doesn't natively perceive. It's the literary cousin of counting the letters in "strawberry," but far deeper.
+3. **Constraints in conflict.** Meaning, syntax, meter, rhyme and register pull in opposite directions. Generating under several simultaneous hard constraints is a proxy for long-horizon planning.
+4. **Measurable anti-regurgitation.** The canon (Rimbaud, Mallarmé) is in the training data, so the benchmark has to *penalize* recall and reward fresh production under novel constraint — imposed rhyme words, imposed lexicon.
+
+Guiding principle: **one wrong line invalidates the item.** A 13-syllable alexandrine isn't "almost right," it's wrong. The gates are hard.
+
+### Structure
+
+120 items across five parts, each weighted and verified differently:
+
+| Part | Skill | Items | Weight | Verification |
+|---|---|---|---|---|
+| A | Scansion & analysis | 40 | 25% | Fully automatable |
+| B | Constrained generation | 30 | 35% | ~70% automatable |
+| C | Stylometric pastiche | 20 | 20% | Human rubric + LLM judge |
+| D | Minimal correction | 15 | 10% | Mixed |
+| E | Adversarial & meta | 15 | 10% | Fully automatable |
+
+**Part B** is the discriminating core: difficulty rises strictly from tier to tier, each tier adding a constraint without removing the previous ones. By the upper tiers a model is producing a regular French sonnet on *imposed rhyme words, in imposed order* (impossible to recite from memory), then a lipogram in alexandrines, then an acrostic-plus-bouts-rimés triple constraint, and finally "the tomb" — a sonnet that re-attempts Mallarmé's feat without reusing a single one of his rhyme words, forcing the model either to find its own lexical stock or to honestly admit the lexicon is exhausted.
+
+**Part E** is the part I care most about for AI evaluation generally. It measures *technical sycophancy*: false premises ("here is an alexandrine by Racine" — followed by a forged 13-syllable line), false attributions ("an unpublished Mallarmé quatrain found in 2024"), planted definition traps, and self-verification (the model is handed back its *own* failed output and asked to check it). That last one is, empirically, the item most correlated with a model's general reliability in agentic settings — which is exactly why a poetry benchmark turns out to say something about agents.
+
+### Reading the scores
+
+```
+PTYX = 0.25·A + 0.35·B + 0.20·C + 0.10·D + 0.10·E      (out of 100)
+```
+
+Three derived indices are published separately because they tell different stories: **Φ** (pure phonological capacity), **Σ** (planning under crossed constraints), and **Ε** (resistance to sycophancy). A model can be brilliant at Σ and useless at Ε — it versifies beautifully but swallows every false premise — and the aggregate alone would hide that.
+
+The most instructive gap the benchmark looks for is **high A, low B**: a model that *knows* the rules but can't *generate under* them. That declarative/procedural split is the same thing code benchmarks measure. Closing it is a real signal about planning.
+
+### Anti-gaming
+
+Generated lines are checked (8-gram match) against a ~50,000-poem reference corpus — any match zeroes the item and flags it. 40% of items regenerate from parametric templates each release, so the suite can't be memorized. A handful of "canary" items carry an instruction invisible to a hurried human, to catch harnesses that cheat via human post-processing.
+
+The full specification — the normative rule set (R1–R12), every tier, the automatic verifier architecture, and ready-to-run example items — lives in [`docs/PTYX.md`](docs/PTYX.md).
+
+---
+
+## Project layout
 
 ```
 azur/
-  azur/scansion.py        scansion classique (PTYX-lite)
-  azur/rhyme.py           finales phonétiques, genre, richesse, schéma
-  azur/semantics.py       champs, segmentation idiomatique, axe lyrique, échos
-  azur/lm.py              backends surprisal (wordfreq / n-gramme / transformers), T, Δ
-  azur/scorer.py          axes F·N·Φ·O·D, régime instrumental, rapport
-  azur/judge.py           juge LLM optionnel (rubrique L1-L7, JSON)
-  data/champs.json        ressource sémantique (remplaçable par embeddings)
-  data/idiomes.txt        collocations figées
-  data/scansion_tables.json   tables -ent muet / diérèses classiques
-  tests/                  56 tests (scansion or, rhyme, semantics, lm, scorer, cli)
-  demo.py                 étude de cas §3 exécutable
-  azur_cli.py             CLI texte/fichier/stdin, sortie humaine ou JSON
-  pyproject.toml          config pytest + ruff
-  .github/workflows/ci.yml   ruff + pytest (3.9/3.11/3.12) + demo
+  scansion.py      classical scansion (PTYX-lite)
+  rhyme.py         phonetic endings, gender, richness, scheme
+  semantics.py     fields, idiomatic segmentation, lyric axis, echoes
+  lm.py            surprisal backends (wordfreq / n-gram / transformers), T, Δ
+  scorer.py        F·N·Φ·O·D axes, instrumental regime, report
+  judge.py         optional LLM judge (L1–L7 rubric, JSON)
+data/
+  champs.json      semantic resource (swappable for embeddings)
+  idiomes.txt      frozen collocations
+  scansion_tables.json   mute -ent / classical diérèse tables
+tests/             56 tests
+demo.py            runnable case study
+azur_cli.py        text / file / stdin CLI, human or JSON output
+docs/PTYX.md       full benchmark specification
 ```
 
-## Licence
+## Requirements
 
-MIT — voir [LICENSE](LICENSE).
+Python ≥ 3.9 (tested on 3.9, 3.11, 3.12). Dependencies in `requirements.txt` (`wordfreq`, `pytest`). Optional: `anthropic` for the LLM judge; `torch` + `transformers` for the real surprisal backend.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
