@@ -1,0 +1,16 @@
+# Idiomes / collocations figées : traités comme UN item lexical (§2.3 AZUR)
+# format : expression | régime
+sentir la poisse | cliché
+sent la poisse | cliché
+peur bleue | cliché
+poser un lapin | cliché
+tomber dans les pommes | cliché
+avoir le cafard | cliché
+broyer du noir | cliché
+filer à l'anglaise | cliché
+yeux d'azur | cliché_poétique
+cœur brisé | cliché_poétique
+âme sœur | cliché_poétique
+nuit étoilée | cliché_poétique
+clair de lune | cliché_poétique
+feu de la passion | cliché_poétique

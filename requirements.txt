@@ -1,0 +1,6 @@
+wordfreq>=3.0
+pytest>=7.0
+# optionnel : juge LLM
+# anthropic>=0.40
+# optionnel : backend surprisal réel (machine GPU)
+# torch transformers
